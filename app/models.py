@@ -1,25 +1,24 @@
-students_db = []
-id_tracker = 1
+from app.extensions import db
 
-class Student:
-    def __init__(self, first_name, last_name, grade, email):
-        self.id = None
-        self.first_name = first_name
-        self.last_name = last_name
-        self.grade = grade
-        self.email = email
+class Student(db.Model):
+    __tablename__ = 'students'
+
+    id = db.Column(db.Integer, primary_key=True)
+    first_name = db.Column(db.String(50), nullable=False)
+    last_name = db.Column(db.String(50), nullable=False)
+    grade = db.Column(db.String(5), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
 
     def save(self):
-        global id_tracker
-        
-        self.id = id_tracker
-        students_db.append(self)
-        id_tracker += 1
-        
+        db.session.add(self)
+        db.session.commit()
         return self
 
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
+
     def to_dict(self):
-        """Helper to convert the object to JSON-friendly dict"""
         return {
             "id": self.id,
             "first_name": self.first_name,
