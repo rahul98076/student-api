@@ -3,3 +3,4 @@ python-dotenv
 pytest
 flask-sqlalchemy
 flask-migrate
+psycopg2-binary

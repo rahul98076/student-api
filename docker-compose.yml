@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: student_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d student_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://postgres:password@db:5432/student_db
+      FLASK_APP: run.py
+      FLASK_DEBUG: 1
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/healthcheck')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  postgres_data:
