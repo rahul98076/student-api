@@ -1,134 +1,119 @@
-# Student API
+# Student API (SRE Bootcamp)
 
-A production-grade REST API for managing student records, built with Python (Flask), SQLite, and Docker-ready architecture. This project implements the Twelve-Factor App methodology.
+A production-grade REST API for managing student records. The service is implemented with Python (Flask) and is container-first — the repository includes a Docker Compose configuration that provisions a PostgreSQL 15 database with a persistent volume.
 
-## Features
+## Highlights
 
-- CRUD Operations: Create, Read, Update, Delete students
-- Database: SQLite with Flask-Migrate for schema management
-- Best Practices: API Versioning (/api/v1), Structured Logging, and Healthchecks
-- Containerization: Multi-stage Docker build with non-root user security
-- Testing: Automated unit tests with pytest and in-memory databases
-- Configuration: Environment-based config using .env
+- **CRUD Operations:** Create, Read, Update, Delete students.
+- **Database:** PostgreSQL 15 (containerized) with a named volume for persistence.
+- **Orchestration:** Docker Compose for reproducible local environments.
+- **Migrations:** Flask-Migrate (Alembic) used to manage schema changes.
+- **Healthchecks:** Services expose healthchecks and the Compose setup waits for dependencies.
+- **Testing:** Unit tests with pytest; test tooling available via `make`.
 
 ## Tech Stack
 
 - **Language:** Python 3.14
 - **Framework:** Flask
-- **ORM:** SQLAlchemy
-- **Container:** Docker (Multi-stage)
+- **Database:** PostgreSQL 15
+- **Containerization:** Docker & Docker Compose
 - **Testing:** Pytest
 - **Tooling:** Makefile, Postman
 
-## Project Structure
+## Quick Start (recommended)
 
-```
-student-api/
-├── app/                    # Application package
-│   ├── __init__.py         # Flask app factory and route definitions
-│   ├── extensions.py       # SQLAlchemy and Migrate extensions
-│   ├── models.py           # Database models (Student)
-│   └── __pycache__/
-├── instance/               # Instance-specific files (generated)
-├── migrations/             # Alembic database migrations
-│   ├── versions/           # Migration scripts
-│   ├── alembic.ini         # Alembic configuration
-│   └── env.py              # Alembic environment setup
-├── tests/                  # Test suite
-│   ├── conftest.py         # Pytest fixtures and configuration
-│   ├── test_students.py    # Student API tests
-│   └── __pycache__/
-├── run.py                  # Application entry point
-├── Makefile                # Common commands
-├── requirements.txt        # Python dependencies
-├── readme.md               # This file
-└── Student API.postman_collection.json  # Postman collection for API testing
-```
+This project is intended to run with Docker Compose. The Compose file starts two services: `db` (Postgres) and `api` (the Flask app). The `api` service is configured with a `DATABASE_URL` that points to the `db` service.
 
-## Local Setup (Non-Docker)
+Prerequisites
 
-1. Prerequisites
-   - Python 3.x installed.
-   - make (optional, for using the Makefile shortcuts).
+- Docker
+- GNU `make` 
 
-2. Installation
-   Clone the repository and install dependencies using the Makefile:
-   ```bash
-   make setup
-   make install
-   ```
-   Alternatively, create a venv manually and run:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Configuration
-   Create a `.env` file in the root directory:
-   ```
-   FLASK_APP=run.py
-   FLASK_DEBUG=1
-   DATABASE_URL=sqlite:///students.db
-   ```
-
-4. Database Setup
-   Initialize the SQLite database and apply migrations:
-   ```bash
-   flask db upgrade
-   ```
-
-## Running the Application (Local)
-
-Start the server:
+**Automatic Setup (Recommended):**
+We have included a script to check for and install these tools automatically.
 ```bash
-make run
+make setup
 ```
-The API will be available at http://127.0.0.1:5000
+Manual Install: If you prefer to install them manually:
 
-## Docker Support
+[Docker](https://www.docker.com/products/docker-desktop)
 
-This application is containerized using a Multi-Stage Dockerfile for optimized image size and security.
+[GNU make](https://www.gnu.org/software/make/)
 
-1. Build the Image
-   Build the Docker image using the Makefile. You can specify a version tag (default is v1).
-   Build version v1.0.0
-   ```bash
-   make docker-build VERSION=v1.0.0
-   ```
+Start the stack and apply migrations:
 
-2. Run the Container
-   Run the container locally. This command injects your local .env variables into the container and maps port 5000.
-   Run version v1.0.0
-   ```bash
-   make docker-run VERSION=v1.0.0
-   ```
-   The API will be available at http://localhost:5000.
+```bash
+make start
+```
 
-3. Manual Docker Commands
-   If you prefer not to use Make:
+Notes
 
-   Build
-   ```bash
-   docker build -t student-api:v1.0.0 .
-   ```
+- API: http://localhost:5000
+- Postgres: localhost:5432 (credentials provided in `docker-compose.yml`: user `postgres`, password `password`, database `student_db`)
 
-   Run (Injecting env vars and mapping ports)
-   ```bash
-   docker run --rm -p 5000:5000 --env-file .env student-api:v1.0.0
-   ```
+Common Make targets
+
+| Command | Description |
+| --- | --- |
+| `make start` | Start API + DB, wait for healthchecks, and migrate schema |
+| `make up` | Start services in detached mode (`docker compose up -d`) |
+| `make down` | Stop services (`docker compose down`) |
+| `make logs` | Follow logs for all services (`docker compose logs -f`) |
+| `make migrate` | Run `flask db upgrade` inside the API container |
+| `make clean-docker` | Stop services and remove volumes (`docker compose down -v`) |
+| `make test` | Run unit tests locally (`pytest`) |
+
+## Environment / Configuration
+
+The service reads configuration from environment variables. When using Docker Compose the `api` service is given a `DATABASE_URL` that points at the `db` service. When running locally (non-container) update your `.env` accordingly.
+
+Example `.env` for local Postgres (replace values as needed):
+
+```dotenv
+FLASK_APP=run.py
+FLASK_DEBUG=1
+FLASK_SECRET_KEY=change-me
+DATABASE_URL=postgresql://postgres:password@localhost:5432/student_db
+```
+
+Note: the repository currently contains a `.env` with a SQLite `DATABASE_URL` value for quick local runs; update it if you prefer Postgres locally.
 
 ## API Endpoints
 
-Method | Endpoint | Description
----|---:|---
-GET | /healthcheck | Service health status
-GET | /api/v1/students | Get all students
-POST | /api/v1/students | Create a new student
-GET | /api/v1/students/<id> | Get specific student
-PUT | /api/v1/students/<id> | Update student details
-DELETE | /api/v1/students/<id> | Delete a student
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/healthcheck` | Service health status |
+| GET | `/api/v1/students` | Get all students |
+| POST | `/api/v1/students` | Create a new student |
+| GET | `/api/v1/students/<id>` | Get specific student |
+| PUT | `/api/v1/students/<id>` | Update student details |
+| DELETE | `/api/v1/students/<id>` | Delete a student |
 
-### Example: Create a student
+## Local (non-Docker) setup
+
+If you want to run the application without containers:
+
+1. Create a virtual environment and install dependencies:
+
+```bash
+make setup
+source .venv/bin/activate  # on Windows: .venv/Scripts/activate
+pip install -r requirements.txt
+```
+
+2. Configure `.env` to point to your Postgres instance (see example above).
+
+3. Run migrations and start the app:
+
+```bash
+flask db upgrade
+python run.py
+```
+
+## Example: Create a student
+
 Request body:
+
 ```json
 {
   "first_name": "John",
@@ -140,25 +125,31 @@ Request body:
 
 ## Testing
 
-Run the automated test suite:
+Run tests locally via Make:
+
 ```bash
 make test
 ```
-Tests are located in the `tests/` directory using pytest. The suite uses in-memory databases for fast, isolated runs.
 
 ## Logging
 
-The application includes structured logging at INFO level; logs include endpoint calls and CRUD operations.
+The application uses structured logging (INFO level) and logs include endpoint calls and CRUD operations.
 
 ## Student Model
 
-The Student model includes the following fields:
-- `id` (Integer, Primary Key) - Auto-generated student ID
-- `first_name` (String, Required) - Student's first name
-- `last_name` (String, Required) - Student's last name
-- `grade` (String, Required) - Current grade level
-- `email` (String, Required, Unique) - Student's email address
+The `Student` model includes these fields:
 
-## License
+- `id` (Integer, Primary Key)
+- `first_name` (String, required)
+- `last_name` (String, required)
+- `grade` (String, required)
+- `email` (String, required, unique)
 
-This project is part of the One2N SRE bootcamp curriculum.
+## Notes
+
+- The Compose file in this repository provisions Postgres 15 and a named volume `postgres_data` for persistence.
+- The Makefile exposes convenient shortcuts (`make start`, `make migrate`, `make logs`, etc.).
+
+---
+
+This README was synchronized with the repository's Docker Compose and Makefile settings.
