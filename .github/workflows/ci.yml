@@ -1,0 +1,26 @@
+name: CI Pipeline
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "app/**"
+      - "run.py"
+      - "Dockerfile"
+      - "Makefile"
+      - "requirements.txt"
+  
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: self-hosted
+#testing    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Verify Docker and Make
+        run: |
+          echo "Running on $(hostname)"
+          docker --version
+          make --version

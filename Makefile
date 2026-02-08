@@ -43,3 +43,10 @@ start:
 	@echo "-----------------------------------"
 	@echo "Student API is running on http://localhost:5000"
 	@echo "-----------------------------------"
+
+
+lint:
+	flake8 app/ run.py
+
+build:
+	docker build -t $(IMAGE_NAME):$(VERSION) .
