@@ -1,3 +1,8 @@
+PYTHON_CMD ?= python3
+ifeq ($(OS),Windows_NT)
+    PYTHON_CMD = python
+endif
+
 IMAGE_NAME = student-api
 VERSION ?= v1
 
@@ -6,7 +11,7 @@ check-tools:
 	@./scripts/setup.sh
 
 venv:
-	python -m venv venv
+	$(PYTHON_CMD) -m venv venv
 
 install:
 	pip install -r requirements.txt
@@ -15,10 +20,10 @@ setup: check-tools venv install
 
 
 run:
-	python run.py
+	$(PYTHON_CMD) run.py
 
 test:
-	python -m pytest
+	$(PYTHON_CMD) -m pytest
 
 
 up:
