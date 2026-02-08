@@ -1,0 +1,1 @@
+{"rsync":{"/app":{"type":"rsync","guestpath":"/app","hostpath":"/home/rahul/student-api","disabled":false,"__vagrantfile":true,"owner":"vagrant","group":"vagrant"}}}

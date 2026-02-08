@@ -28,7 +28,7 @@ test:
 
 
 up:
-	docker compose up -d
+	docker compose up --build -d
 
 down:
 	docker compose down
@@ -59,3 +59,7 @@ build:
 
 push:
 	docker push $(IMAGE_NAME):$(VERSION)
+
+
+deploy: down up
+	@echo "Deployment complete. Nginx is listening on port 8080."
