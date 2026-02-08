@@ -14,13 +14,24 @@ on:
 jobs:
   build-and-test:
     runs-on: self-hosted
-#testing    
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Verify Docker and Make
+      - name: Install Dependencies
         run: |
-          echo "Running on $(hostname)"
-          docker --version
-          make --version
+          make setup
+
+      - name: Lint Code
+        run: |
+          . venv/bin/activate
+          make lint
+
+      - name: Run Tests
+        run: |
+          . venv/bin/activate
+          make test
+
+      - name: Build Container image
+        run: make build
