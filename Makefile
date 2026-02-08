@@ -4,7 +4,8 @@ ifeq ($(OS),Windows_NT)
 endif
 
 IMAGE_NAME = rahul98076/student-api
-VERSION ?= latest
+GIT_COMMIT := $(shell git rev-parse --short HEAD)
+VERSION ?= $(if $(GIT_COMMIT),$(GIT_COMMIT),latest)
 
 check-tools:
 	@chmod +x scripts/setup.sh
