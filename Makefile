@@ -3,8 +3,8 @@ ifeq ($(OS),Windows_NT)
     PYTHON_CMD = python
 endif
 
-IMAGE_NAME = student-api
-VERSION ?= v1
+IMAGE_NAME = rahul98076/student-api
+VERSION ?= latest
 
 check-tools:
 	@chmod +x scripts/setup.sh
@@ -55,3 +55,6 @@ lint:
 
 build:
 	docker build -t $(IMAGE_NAME):$(VERSION) .
+
+push:
+	docker push $(IMAGE_NAME):$(VERSION)
