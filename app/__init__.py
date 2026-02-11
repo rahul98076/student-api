@@ -26,6 +26,10 @@ def create_app():
         app.logger.info("Healthcheck endpoint called")
         return jsonify({"status": "ok"})
 
+    @app.route('/')
+    def home():
+        return jsonify({"message": "CI/CD test"}), 200
+
     @app.route('/api/v1/students', methods=['POST'])
     def create_student():
         data = request.get_json()
