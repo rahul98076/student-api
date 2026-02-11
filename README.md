@@ -1,138 +1,199 @@
----
-
+```markdown
 # Student API (SRE Bootcamp)
 
-A production-grade REST API for managing student records. This project is built to be "cloud-native," transitioning from local development to a distributed Kubernetes architecture managed via Helm.
+A production-grade REST API for managing student records. This project is built to be "cloud-native," transitioning from local development to a distributed Kubernetes architecture managed via Helm and ArgoCD.
 
-## Kubernetes (Production Deployment)
+## GitOps Deployment (ArgoCD)
 
-This is the current "Production" state of the project, simulating a real-world distributed environment using a three-node Minikube cluster. All resources are managed through Helm charts for consistency and scalability.
+We use ArgoCD for continuous delivery. This is the preferred method for deploying the stack.
+
+### Prerequisites
+
+* Minikube cluster running.
+* `kubectl` and `helm` installed.
+
+### Setup Instructions
+
+1. **Install ArgoCD:**
+
+   ```bash
+   kubectl create namespace argocd
+   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+   ```
+# Student API (SRE Bootcamp)
+
+A production-grade REST API for managing student records. Designed to be cloud-native and deployable via Helm and ArgoCD.
+
+<!-- TOC -->
+- [Overview](#overview)
+- [GitOps Deployment (ArgoCD)](#gitops-deployment-argocd)
+- [Manual Kubernetes Deployment (Helm)](#manual-kubernetes-deployment-helm)
+- [Tech Stack](#tech-stack)
+- [Local Development (Docker Compose)](#local-development-docker-compose)
+- [API Endpoints](#api-endpoints)
+- [Testing & Logging](#testing--logging)
+- [Student Model](#student-model)
+- [Contributing](#contributing)
+
+## Overview
+
+This repository contains a sample Student API used in the SRE Bootcamp. It demonstrates a full delivery lifecycle from local development (Docker Compose) to production-like Kubernetes deployments managed with Helm and ArgoCD.
+
+## GitOps Deployment (ArgoCD)
+
+ArgoCD is the recommended deployment method for continuous delivery.
+
+### Prerequisites
+
+- A running Kubernetes cluster (Minikube or a cloud provider)
+- `kubectl` and `helm` installed locally
+
+### Quick Setup
+
+1. Install ArgoCD:
+
+```bash
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+
+2. Access the UI:
+
+```bash
+# Get the initial admin password
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+
+# Port forward the server
+kubectl port-forward svc/argocd-server -n argocd 8085:443
+```
+
+Open https://localhost:8085 in your browser.
+
+3. Deploy the application manifests (example):
+
+```bash
+kubectl apply -f helm/argocd/applications.yaml
+```
+
+After this, ArgoCD will sync the desired state from the Git repository and deploy the stack.
+
+## Manual Kubernetes Deployment (Helm)
+
+This path is useful for debugging or when you prefer manual control.
 
 ### Architecture Highlights
 
-* **Multi-Node Isolation:** Workloads are distributed across labeled nodes (Application, Database, and Dependent Services) to ensure resource separation.
-* **Package Management:** The entire stack is deployed using Helm charts, allowing for versioned releases and templated configurations.
-* **Zero-Trust Secrets:** Sensitive credentials are never stored in plain text. We use the **External Secrets Operator (ESO)** to fetch secrets from a **HashiCorp Vault** instance.
-* **Automated Migrations:** Database schema changes are handled by an **Init Container** (`run-migrations`) within the Helm deployment that must succeed before the API pod starts.
-* **High Availability:** The API is deployed with multiple replicas in the `student-api` namespace for resilience.
+- Multi-node separation (application, database, dependent services)
+- Helm charts for package management and versioned releases
+- Secrets managed via External Secrets Operator with HashiCorp Vault
+- DB schema migrations run as an init container before the API pod starts
+- The API runs with multiple replicas for availability
 
-### Deployment Steps
+### Deployment Steps (summary)
 
-1. **Label your nodes** (if not already done):
+1. Label nodes (optional):
 
 ```bash
 kubectl label nodes sre-bootcamp type=application
 kubectl label nodes sre-bootcamp-m02 type=database
 kubectl label nodes sre-bootcamp-m03 type=dependent-services
-
 ```
 
-2. **Update Dependencies:**
-Navigate to each chart directory in `helm/` and ensure community dependencies are updated:
+2. Update Helm dependencies:
 
 ```bash
 helm dependency update ./helm/vault
 helm dependency update ./helm/postgres
 helm dependency update ./helm/external-secrets
-
 ```
 
-3. **Deploy the Stack via Helm:**
-Install the components in the following order to ensure dependencies are available:
+3. Install components in order:
 
 ```bash
-# 1. External Secrets Operator
+# External Secrets Operator
 helm upgrade --install external-secrets ./helm/external-secrets -n external-secrets --create-namespace
 
-# 2. Vault and Database
+# Vault and Postgres
 helm upgrade --install vault ./helm/vault -n vault --create-namespace
 helm upgrade --install database ./helm/postgres -n student-api
 
-# 3. Student API
+# Student API
 helm upgrade --install student-api ./helm/student-api -n student-api
-
 ```
 
-4. **Verify Secrets Sync:**
+4. Verify secrets and services:
 
 ```bash
 kubectl get externalsecret -n student-api
-
+kubectl get pods -n student-api
 ```
 
-5. **Access the API:**
+5. Port-forward API for local access:
 
 ```bash
 kubectl port-forward svc/student-api 8082:8080 -n student-api
-
 ```
-
----
 
 ## Tech Stack
 
-* **Orchestration:** Kubernetes (Minikube), Helm v3, Docker Compose
-* **Secrets:** HashiCorp Vault & External Secrets Operator
-* **Language:** Python 3.14 (Flask)
-* **Database:** PostgreSQL 15 (Bitnami Helm Chart)
-* **CI/CD:** GitHub Actions with Self-Hosted Runners
-
----
+- Orchestration: Kubernetes (Minikube), Helm v3
+- Local: Docker & Docker Compose
+- CD / GitOps: ArgoCD
+- Secrets: HashiCorp Vault & External Secrets Operator
+- Language: Python 3.14 (Flask)
+- Database: PostgreSQL 15 (Bitnami Helm Chart)
+- CI: GitHub Actions (self-hosted runners optional)
 
 ## Local Development (Docker Compose)
 
-The repository still supports a one-click local environment for rapid feature development.
+Run a lightweight local environment for fast iteration.
 
 ### Prerequisites
 
-* Docker & Docker Compose
-* GNU `make`
+- Docker & Docker Compose
+- GNU `make`
 
 ### Quick Start
 
 ```bash
-make setup   # Install tools
-make start   # Start API + DB and apply migrations
-
+make setup   # install helpers and prerequisites
+make start   # start API, DB, and apply migrations
 ```
 
-**Common Make Targets:**
+Common make targets:
+
 | Command | Description |
 | :--- | :--- |
 | `make up` | Start services in detached mode |
 | `make down` | Stop services |
-| `make migrate` | Run manual migrations inside the container |
+| `make migrate` | Run DB migrations inside the container |
 | `make test` | Run unit tests with pytest |
-
----
 
 ## API Endpoints
 
-All endpoints support versioning (e.g., `/api/v1/<resource>`).
+All endpoints are versioned under `/api/v1`.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | GET | `/healthcheck` | Service health status |
-| GET | `/api/v1/students` | Get all students |
+| GET | `/api/v1/students` | List all students |
 | POST | `/api/v1/students` | Create a new student |
-| GET | `/api/v1/students/<id>` | Get specific student |
-| PUT | `/api/v1/students/<id>` | Update student details |
+| GET | `/api/v1/students/<id>` | Retrieve a student by ID |
+| PUT | `/api/v1/students/<id>` | Update a student's details |
 | DELETE | `/api/v1/students/<id>` | Delete a student record |
-
----
 
 ## Testing & Logging
 
-* **Unit Tests:** Run `make test` to execute the pytest suite.
-* **Structured Logs:** The API emits logs with appropriate levels (INFO/DEBUG) to ensure observability.
-
----
+- Unit tests: `make test` (pytest)
+- Logging: structured logs (INFO/DEBUG) for observability and troubleshooting
 
 ## Student Model
 
-The `Student` model includes:
+The `Student` model contains the following fields:
 
-* `id` (Primary Key)
-* `first_name`, `last_name`, `grade`, `email` (Unique)
+- `id` (primary key)
+- `first_name`, `last_name`
+- `grade`
+- `email` (unique)
 
----
+
