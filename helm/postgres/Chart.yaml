@@ -1,0 +1,11 @@
+apiVersion: v2
+name: postgres
+description: A community-managed Postgres chart
+type: application
+version: 1.0.0
+appVersion: "15.0.0"
+
+dependencies:
+  - name: postgresql
+    version: "15.x.x"
+    repository: "https://charts.bitnami.com/bitnami"

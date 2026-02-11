@@ -1,0 +1,10 @@
+postgresql:
+  auth:
+    database: studentdb
+    username: student
+    password: sre-bootcamp-secret
+  primary:
+    nodeSelector:
+      type: database
+    persistence:
+      size: 1Gi

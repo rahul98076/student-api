@@ -1,0 +1,11 @@
+apiVersion: v2
+name: vault
+description: Official HashiCorp Vault Chart
+type: application
+version: 1.0.0
+appVersion: "1.14.0"
+
+dependencies:
+  - name: vault
+    version: "0.25.0"
+    repository: "https://helm.releases.hashicorp.com"

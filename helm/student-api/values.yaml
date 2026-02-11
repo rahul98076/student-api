@@ -1,0 +1,21 @@
+replicaCount: 2
+
+image:
+  repository: rahul98076/student-api
+  tag: "v1"
+  pullPolicy: Always
+
+service:
+  type: NodePort
+  port: 8080
+  targetPort: 5000
+  nodePort: 30001
+
+database:
+  host: "postgres"
+  port: "5432"
+  name: "studentdb"
+  secretName: "db-creds-final"
+
+nodeSelector:
+  type: application
