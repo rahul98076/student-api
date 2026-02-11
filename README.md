@@ -28,6 +28,7 @@ A production-grade REST API for managing student records. Designed to be cloud-n
 - [Overview](#overview)
 - [GitOps Deployment (ArgoCD)](#gitops-deployment-argocd)
 - [Manual Kubernetes Deployment (Helm)](#manual-kubernetes-deployment-helm)
+- [Observability Stack Setup](#observability-stack-setup)
 - [Tech Stack](#tech-stack)
 - [Local Development (Docker Compose)](#local-development-docker-compose)
 - [API Endpoints](#api-endpoints)
@@ -133,6 +134,51 @@ kubectl get pods -n student-api
 ```bash
 kubectl port-forward svc/student-api 8082:8080 -n student-api
 ```
+
+## Observability Stack Setup
+
+### Components Overview
+
+**Prometheus & Grafana**: Deployed via kube-prometheus-stack to collect metrics and visualize system health.
+
+**Loki & Promtail**: PLG stack for log aggregation. Promtail is configured via pipeline stages to drop all logs except those from the student-api namespace.
+
+**Postgres Exporter**: Bridges PostgreSQL internal stats to Prometheus metrics.
+
+**Blackbox Exporter**: Monitors endpoint probes (uptime/latency) for the REST API and internal services.
+
+### Deployment Instructions
+
+1. Add required Helm repositories:
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+```
+
+2. Deploy the observability stack to the dedicated node (dependent_services):
+
+```bash
+helm install monitoring prometheus-community/kube-prometheus-stack -n observability -f helm/observability-values.yaml
+helm install loki grafana/loki-stack -n observability -f helm/observability-values.yaml
+helm install db-exporter prometheus-community/prometheus-postgres-exporter -n observability -f helm/observability-values.yaml
+helm install blackbox prometheus-community/prometheus-blackbox-exporter -n observability -f helm/observability-values.yaml
+```
+
+### Verification & Access
+
+**Check Scrape Targets**: Access the Prometheus UI to verify kube-state-metrics, node-exporter, and postgres-exporter are being scraped.
+
+**Access Grafana**:
+
+```bash
+kubectl port-forward -n observability deployment/monitoring-grafana 3000:3000
+```
+
+Then open http://localhost:3000 in your browser.
+
+**Data Sources**: Verify that both Loki (URL: `http://loki:3100`) and Prometheus (URL: `http://monitoring-kube-prometheus-prometheus:9090`) are configured as default data sources.
 
 ## Tech Stack
 

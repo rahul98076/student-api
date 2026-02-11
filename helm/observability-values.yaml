@@ -1,0 +1,51 @@
+grafana:
+  nodeSelector:
+    type: dependent_services
+  adminPassword: "admin"
+  sidecar:
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+
+prometheus:
+  prometheusSpec:
+    nodeSelector:
+      type: dependent_services
+
+kube-state-metrics:
+  nodeSelector:
+    type: dependent_services
+
+loki:
+  nodeSelector:
+    type: dependent_services
+
+promtail:
+  nodeSelector:
+    type: dependent_services
+  config:
+    lokiAddress: http://loki:3100/loki/api/v1/push
+
+prometheus-postgres-exporter:
+  nodeSelector:
+    type: dependent_services
+  config:
+    datasource:
+      host: postgres-postgresql.student-api.svc.cluster.local
+      user: student
+      password: sre-bootcamp-secret
+      port: 5432
+      database: postgres
+  serviceMonitor:
+    enabled: true
+
+prometheus-blackbox-exporter:
+  nodeSelector:
+    type: dependent_services
+  serviceMonitor:
+    enabled: true
+    targets:
+      - name: student-api
+        url: http://student-api.student-api.svc.cluster.local/healthcheck
+        interval: 30s
+        scrape_timeout: 10s
