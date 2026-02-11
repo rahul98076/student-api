@@ -1,155 +1,160 @@
 # Student API (SRE Bootcamp)
 
-A production-grade REST API for managing student records. The service is implemented with Python (Flask) and is container-first — the repository includes a Docker Compose configuration that provisions a PostgreSQL 15 database with a persistent volume.
+A production-grade REST API for managing student records. This project is built to be "cloud-native," transitioning from local development to a distributed Kubernetes architecture.
 
-## Highlights
+##  Kubernetes (Production Deployment)
 
-- **CRUD Operations:** Create, Read, Update, Delete students.
-- **Database:** PostgreSQL 15 (containerized) with a named volume for persistence.
-- **Orchestration:** Docker Compose for reproducible local environments.
-- **Migrations:** Flask-Migrate (Alembic) used to manage schema changes.
-- **Healthchecks:** Services expose healthchecks and the Compose setup waits for dependencies.
-- **Testing:** Unit tests with pytest; test tooling available via `make`.
+This is the current "Production" state of the project, simulating a real-world distributed environment using a three-node Minikube cluster.
 
-## Tech Stack
+### Architecture Highlights
 
-- **Language:** Python 3.14
-- **Framework:** Flask
-- **Database:** PostgreSQL 15
-- **Containerization:** Docker & Docker Compose
-- **Testing:** Pytest
-- **Tooling:** Makefile, Postman
+* 
+**Multi-Node Isolation:** Workloads are distributed across labeled nodes (Application, Database, and Dependent Services) to ensure resource separation.
 
-## Quick Start (recommended)
 
-This project is intended to run with Docker Compose. The Compose file starts two services: `db` (Postgres) and `api` (the Flask app). The `api` service is configured with a `DATABASE_URL` that points to the `db` service.
+* **Zero-Trust Secrets:** Sensitive credentials are never stored in plain text. We use the **External Secrets Operator (ESO)** to fetch secrets from a **HashiCorp Vault** instance.
 
-Prerequisites
 
-- Docker
-- GNU `make` 
+* 
+**Automated Migrations:** Database schema changes are handled by an **Init Container** (`run-migrations`) that must succeed before the API pod starts.
 
-**Automatic Setup (Recommended):**
-We have included a script to check for and install these tools automatically.
+
+* 
+**High Availability:** The API is deployed with multiple replicas in the `student-api` namespace for resilience.
+
+
+
+### Deployment Steps
+
+1. **Label your nodes** (if not already done):
 ```bash
-make setup
+kubectl label nodes sre-bootcamp type=application
+kubectl label nodes sre-bootcamp-m02 type=database
+
 ```
-Manual Install: If you prefer to install them manually:
 
-[Docker](https://www.docker.com/products/docker-desktop)
 
-[GNU make](https://www.gnu.org/software/make/)
-
-Start the stack and apply migrations:
-
+2. **Deploy the Stack:**
 ```bash
-make start
+kubectl apply -f database.yml
+kubectl apply -f application.yml
+
 ```
 
-Notes
 
-- API: http://localhost:5000
-- Postgres: localhost:5432 (credentials provided in `docker-compose.yml`: user `postgres`, password `password`, database `student_db`)
-
-Common Make targets
-
-| Command | Description |
-| --- | --- |
-| `make start` | Start API + DB, wait for healthchecks, and migrate schema |
-| `make up` | Start services in detached mode (`docker compose up -d`) |
-| `make down` | Stop services (`docker compose down`) |
-| `make logs` | Follow logs for all services (`docker compose logs -f`) |
-| `make migrate` | Run `flask db upgrade` inside the API container |
-| `make clean-docker` | Stop services and remove volumes (`docker compose down -v`) |
-| `make test` | Run unit tests locally (`pytest`) |
-
-## Environment / Configuration
-
-The service reads configuration from environment variables. When using Docker Compose the `api` service is given a `DATABASE_URL` that points at the `db` service. When running locally (non-container) update your `.env` accordingly.
-
-Example `.env` for local Postgres (replace values as needed):
-
-```dotenv
-FLASK_APP=run.py
-FLASK_DEBUG=1
-FLASK_SECRET_KEY=change-me
-DATABASE_URL=postgresql://postgres:password@localhost:5432/student_db
-```
-
-Note: the repository currently contains a `.env` with a SQLite `DATABASE_URL` value for quick local runs; update it if you prefer Postgres locally.
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| GET | `/healthcheck` | Service health status |
-| GET | `/api/v1/students` | Get all students |
-| POST | `/api/v1/students` | Create a new student |
-| GET | `/api/v1/students/<id>` | Get specific student |
-| PUT | `/api/v1/students/<id>` | Update student details |
-| DELETE | `/api/v1/students/<id>` | Delete a student |
-
-## Local (non-Docker) setup
-
-If you want to run the application without containers:
-
-1. Create a virtual environment and install dependencies:
-
+3. **Verify Secrets Sync:**
 ```bash
-make setup
-source .venv/bin/activate  # on Windows: .venv/Scripts/activate
-pip install -r requirements.txt
+kubectl get externalsecret -n student-api
+
 ```
 
-2. Configure `.env` to point to your Postgres instance (see example above).
 
-3. Run migrations and start the app:
-
+4. **Access the API:**
 ```bash
-flask db upgrade
-python run.py
+kubectl port-forward svc/student-api 8082:8080 -n student-api
+
 ```
 
-## Example: Create a student
 
-Request body:
-
-```json
-{
-  "first_name": "John",
-  "last_name": "Doe",
-  "grade": "10",
-  "email": "john@example.com"
-}
-```
-
-## Testing
-
-Run tests locally via Make:
-
-```bash
-make test
-```
-
-## Logging
-
-The application uses structured logging (INFO level) and logs include endpoint calls and CRUD operations.
-
-## Student Model
-
-The `Student` model includes these fields:
-
-- `id` (Integer, Primary Key)
-- `first_name` (String, required)
-- `last_name` (String, required)
-- `grade` (String, required)
-- `email` (String, required, unique)
-
-## Notes
-
-- The Compose file in this repository provisions Postgres 15 and a named volume `postgres_data` for persistence.
-- The Makefile exposes convenient shortcuts (`make start`, `make migrate`, `make logs`, etc.).
 
 ---
 
-This README was synchronized with the repository's Docker Compose and Makefile settings.
+##  Tech Stack
+
+* 
+**Orchestration:** Kubernetes (Minikube), Docker Compose 
+
+
+* 
+**Secrets:** HashiCorp Vault & External Secrets Operator 
+
+
+* **Language:** Python 3.14 (Flask)
+* 
+**Database:** PostgreSQL 15 
+
+
+* 
+**CI/CD:** GitHub Actions with Self-Hosted Runners 
+
+
+
+---
+
+##  Local Development (Docker Compose)
+
+The repository still supports a one-click local environment for rapid feature development.
+
+### Prerequisites
+
+* Docker & Docker Compose
+* GNU `make`
+
+### Quick Start
+
+```bash
+make setup   # Install tools
+make start   # Start API + DB and apply migrations
+
+```
+
+**Common Make Targets:**
+| Command | Description |
+| :--- | :--- |
+| `make up` | Start services in detached mode |
+| `make down` | Stop services |
+| `make migrate` | Run manual migrations inside the container |
+| `make test` | Run unit tests with pytest |
+
+---
+
+##  API Endpoints
+
+All endpoints support versioning (e.g., `/api/v1/<resource>`).
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/healthcheck` | Service health status 
+
+ |
+| GET | `/api/v1/students` | Get all students 
+
+ |
+| POST | `/api/v1/students` | Create a new student 
+
+ |
+| GET | `/api/v1/students/<id>` | Get specific student 
+
+ |
+| PUT | `/api/v1/students/<id>` | Update student details 
+
+ |
+| DELETE | `/api/v1/students/<id>` | Delete a student record 
+
+ |
+
+---
+
+##  Testing & Logging
+
+* 
+**Unit Tests:** Run `make test` to execute the pytest suite.
+
+
+* 
+**Structured Logs:** The API emits logs with appropriate levels (INFO/DEBUG) to ensure observability.
+
+
+
+---
+
+## Student Model
+
+The `Student` model includes:
+
+* `id` (Primary Key)
+* `first_name`, `last_name`, `grade`, `email` (Unique)
+
+---
+
+
