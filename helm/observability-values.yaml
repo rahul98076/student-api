@@ -21,8 +21,6 @@ loki:
     type: dependent_services
 
 promtail:
-  nodeSelector:
-    type: dependent_services
   config:
     lokiAddress: http://loki:3100/loki/api/v1/push
 
