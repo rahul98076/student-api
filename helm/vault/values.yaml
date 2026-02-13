@@ -1,18 +1,15 @@
 server:
-
-  standalone:
-    enabled: true
   
   dataStorage:
-    enabled: true
-    size: 10Gi
-    storageClass: standard
+    enabled: false
 
-  volumePermissions:
-    enabled: true
+  volumes:
+    - name: data
+      emptyDir: {}
+  
+  volumeMounts:
+    - name: data
+      mountPath: /vault/data
 
   nodeSelector:
     type: dependent_services
-
-ui:
-  enabled: true
