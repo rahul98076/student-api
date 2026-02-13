@@ -1,10 +1,9 @@
 name: CI Pipeline
+
 on:
   push:
-    branches: [ "main" ]
-    paths-ignore:
-      - "README.md"
-      - "helm/**"
+    tags:
+      - "v*.*.*" 
   workflow_dispatch:
 
 jobs:
@@ -18,10 +17,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
-      - name: Set Short SHA
-        id: vars
-        run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Install Dependencies
         run: |
@@ -47,16 +42,19 @@ jobs:
 
       - name: Build and Push
         run: |
-          make build VERSION=${{ env.SHORT_SHA }}
-          make push VERSION=${{ env.SHORT_SHA }}
+          make build VERSION=${{ github.ref_name }}
+          make push VERSION=${{ github.ref_name }}
 
       - name: Update Helm Chart & Deploy
         run: |
-          sed -i 's/tag: .*/tag: "${{ env.SHORT_SHA }}"/' helm/student-api/values.yaml
+          sed -i 's/tag: .*/tag: "${{ github.ref_name }}"/' helm/student-api/values.yaml
 
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-
+          
+          git pull --rebase origin main 
           git add helm/student-api/values.yaml
-          git commit -m "Deploy: Update image tag to ${{ env.SHORT_SHA }}"
+          
+
+          git commit -m "Deploy: Update image tag to ${{ github.ref_name }} [skip ci]"
           git push origin main
