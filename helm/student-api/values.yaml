@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: rahul98076/student-api
-  tag: "513957e"
+  tag: "d837422"
   pullPolicy: Always
 
 service:
