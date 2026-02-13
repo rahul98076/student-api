@@ -1,20 +1,18 @@
 server:
-  dev:
-    enabled: false 
+
   standalone:
     enabled: true
+  
   dataStorage:
     enabled: true
     size: 10Gi
+    storageClass: standard
+
+  volumePermissions:
+    enabled: true
+
   nodeSelector:
     type: dependent_services
 
-  extraInitContainers:
-    - name: fix-permissions
-      image: busybox
-      command: ["sh", "-c", "chown -R 100:100 /vault/data"]
-      securityContext:
-        runAsUser: 0
-      volumeMounts:
-        - name: data
-          mountPath: /vault/data
+ui:
+  enabled: true
