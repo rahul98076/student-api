@@ -12,8 +12,10 @@ spec:
       labels:
         app: {{ .Release.Name }}
     spec:
+      {{- if .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml .Values.nodeSelector | nindent 8 }}
+      {{- end }}
       initContainers:
       - name: run-migrations
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -48,6 +50,20 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
         - containerPort: {{ .Values.service.targetPort }}
+        
+        livenessProbe:
+          httpGet:
+            path: /healthcheck
+            port: {{ .Values.service.targetPort }}
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /healthcheck
+            port: {{ .Values.service.targetPort }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
         env:
         - name: POSTGRES_DB
           valueFrom:
