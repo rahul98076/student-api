@@ -1,4 +1,4 @@
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1
 kind: Application
 metadata:
   name: student-api
@@ -21,7 +21,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
 ---
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1
 kind: Application
 metadata:
   name: postgres
@@ -44,7 +44,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
 ---
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1
 kind: Application
 metadata:
   name: vault
@@ -57,6 +57,19 @@ spec:
     repoURL: https://github.com/rahul98076/student-api
     targetRevision: HEAD
     path: helm/vault
+    helm:
+      values: |
+        server:
+          dev:
+            enabled: true
+          nodeSelector:
+            type: dependent_services
+        injector:
+          enabled: true
+          nodeSelector:
+            type: dependent_services
+        ui:
+          enabled: true
   destination:
     server: https://kubernetes.default.svc
     namespace: vault
@@ -67,7 +80,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
 ---
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1
 kind: Application
 metadata:
   name: external-secrets
