@@ -5,4 +5,5 @@ __pycache__/
 .vscode/
 .vagrant/
 **/venv/
-
+.venv/
+proj_inst.md
