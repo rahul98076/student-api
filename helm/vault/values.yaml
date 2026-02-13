@@ -8,3 +8,11 @@ server:
     size: 10Gi
   nodeSelector:
     type: dependent_services
+server:
+  extraInitContainers:
+    - name: fix-permissions
+      image: busybox
+      command: ["sh", "-c", "chown -R 100:100 /vault/data"]
+      volumeMounts:
+        - name: data
+          mountPath: /vault/data
