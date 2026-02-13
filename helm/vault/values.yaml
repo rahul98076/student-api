@@ -8,7 +8,7 @@ server:
     size: 10Gi
   nodeSelector:
     type: dependent_services
-server:
+
   extraInitContainers:
     - name: fix-permissions
       image: busybox
