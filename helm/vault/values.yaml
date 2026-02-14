@@ -1,15 +1,12 @@
 server:
+  enabled: true 
   
-  dataStorage:
-    enabled: false
-
-  volumes:
-    - name: data
-      emptyDir: {}
-  
-  volumeMounts:
-    - name: data
-      mountPath: /vault/data
+  dev:
+    enabled: true
+    devRootToken: "root"
 
   nodeSelector:
     type: dependent_services
+
+  dataStorage:
+    enabled: false
