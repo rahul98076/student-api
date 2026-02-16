@@ -67,6 +67,7 @@ jobs:
           make push VERSION=${{ steps.image_tag.outputs.tag }}
 
       - name: Update Helm Chart & Deploy
+        if: github.ref_type != 'tag'
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
