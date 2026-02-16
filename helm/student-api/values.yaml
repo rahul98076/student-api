@@ -12,7 +12,7 @@ service:
   nodePort: 30001
 
 database:
-  host: "postgres-postgresql"
+  host: "postgres-db-postgresql"
   port: "5432"
   name: "studentdb"
   secretName: "db-creds-final"
