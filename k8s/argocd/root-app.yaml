@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/rahul98076/student-api.git
-    targetRevision: main
+    targetRevision: ci-updates
     path: k8s/argocd/apps
   destination:
     server: https://kubernetes.default.svc

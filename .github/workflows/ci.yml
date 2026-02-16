@@ -29,6 +29,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Dependencies
         run: |
@@ -71,12 +73,13 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          
-          git pull --rebase origin main 
+
+          git fetch origin main
+          git checkout -B ci-updates origin/main
 
           sed -i 's/tag: .*/tag: "${{ steps.image_tag.outputs.tag }}"/' helm/student-api/values.yaml
 
           git add helm/student-api/values.yaml
 
-          git commit -m "Deploy: Update image tag to ${{ steps.image_tag.outputs.tag }} [skip ci]"
-          git push origin main
+          git commit -m "Deploy: Update image tag to ${{ steps.image_tag.outputs.tag }} [skip ci]" || echo "No changes to commit"
+          git push origin ci-updates

@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/rahul98076/student-api.git
-    targetRevision: main
+    targetRevision: ci-updates
     path: helm/student-api
   destination:
     server: https://kubernetes.default.svc
