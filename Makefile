@@ -1,7 +1,12 @@
 PYTHON_CMD ?= python3
+VENV_DIR ?= venv
+VENV_BIN := $(VENV_DIR)/bin
 ifeq ($(OS),Windows_NT)
-    PYTHON_CMD = python
+	PYTHON_CMD = python
+	VENV_BIN = $(VENV_DIR)/Scripts
 endif
+PYTHON = $(VENV_BIN)/python
+PIP = $(VENV_BIN)/pip
 
 IMAGE_NAME = rahul98076/student-api
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
@@ -12,20 +17,19 @@ check-tools:
 	@./scripts/setup.sh
 
 venv:
-	$(PYTHON_CMD) -m venv venv
-	source venv/bin/activate   
+	$(PYTHON_CMD) -m venv $(VENV_DIR)
 
-install:
-	pip install -r requirements.txt
+install: venv
+	$(PIP) install -r requirements.txt
 
 setup: check-tools venv install
 
 
-run:
-	$(PYTHON_CMD) run.py
+run: venv
+	$(PYTHON) run.py
 
-test:
-	$(PYTHON_CMD) -m pytest
+test: venv
+	$(PYTHON) -m pytest
 
 
 up:
@@ -52,8 +56,8 @@ start:
 	@echo "-----------------------------------"
 
 
-lint:
-	flake8 app/ run.py
+lint: venv
+	$(VENV_BIN)/flake8 app/ run.py
 
 build:
 	docker build -t $(IMAGE_NAME):$(VERSION) .
