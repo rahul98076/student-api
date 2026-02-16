@@ -1,12 +1,13 @@
-server:
-  enabled: true 
-  
-  dev:
-    enabled: true
-    devRootToken: "root"
+vault:
+  server:
+    enabled: true 
+    
+    dev:
+      enabled: true
+      devRootToken: "root"
 
-  nodeSelector:
-    type: dependent_services
+    nodeSelector:
+      type: dependent_services
 
-  dataStorage:
-    enabled: false
+    dataStorage:
+      enabled: false

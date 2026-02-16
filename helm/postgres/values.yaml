@@ -1,10 +1,25 @@
 postgresql:
+  image:
+    registry: docker.io
+    repository: bitnami/postgresql
+    tag: "latest"
   auth:
+    username: postgres
     database: studentdb
-    username: student
-    password: sre-bootcamp-secret
+    existingSecret: db-creds-final
+    secretKeys:
+      adminPasswordKey: password
+      userPasswordKey: password
+      replicationPasswordKey: password
   primary:
     nodeSelector:
       type: database
+    podSecurityContext:
+      enabled: true
+      fsGroup: 1001
+    containerSecurityContext:
+      enabled: true
+      runAsUser: 1001
+      runAsNonRoot: true
     persistence:
-      size: 1Gi
+      enabled: false

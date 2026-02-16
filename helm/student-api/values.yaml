@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: rahul98076/student-api
-  tag: "d837422"
+  tag: "latest"
   pullPolicy: Always
 
 service:
@@ -12,10 +12,21 @@ service:
   nodePort: 30001
 
 database:
-  host: "postgres"
+  host: "postgres-postgresql"
   port: "5432"
   name: "studentdb"
   secretName: "db-creds-final"
+
+externalSecrets:
+  enabled: true
+  vault:
+    server: "http://vault.vault.svc.cluster.local:8200"
+    path: "secret"
+    version: "v2"
+    token: "root"
+  secretStoreName: "vault-backend"
+  externalSecretName: "db-creds-sync"
+  remoteKey: "secret/student-api/db-creds"
 
 nodeSelector:
   type: application

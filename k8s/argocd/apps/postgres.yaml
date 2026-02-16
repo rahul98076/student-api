@@ -13,7 +13,7 @@ spec:
     path: helm/postgres 
   destination:
     server: https://kubernetes.default.svc
-    namespace: database
+    namespace: student-api
   syncPolicy:
     automated:
       prune: true

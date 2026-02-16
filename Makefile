@@ -13,6 +13,7 @@ check-tools:
 
 venv:
 	$(PYTHON_CMD) -m venv venv
+	source venv/bin/activate   
 
 install:
 	pip install -r requirements.txt
