@@ -1,177 +1,467 @@
-
-
 # Student API (SRE Bootcamp)
 
-A production-grade REST API for managing student records. This project is cloud-native and can be run locally (Docker Compose) or deployed to Kubernetes using Helm and ArgoCD.
+This README documents the complete setup and deployment process for the Student API project, covering:
+- **Milestone 7**: Kubernetes deployment with consolidated manifests
+- **Milestone 8**: Helm-based deployment with External Secrets Operator integration
 
-## Table of contents
+## Quick Start (Helm Deployment - Milestone 8)
 
-- [Overview](#overview)
-- [Prerequisites](#prerequisites)
-- [Quick start (local)](#quick-start-local)
-- [GitOps (ArgoCD)](#gitops-argocd)
-- [Manual Helm deploy](#manual-helm-deploy)
-- [Observability](#observability)
-- [API Endpoints](#api-endpoints)
-- [Testing & Logging](#testing--logging)
-- [Student model](#student-model)
+For the complete Helm-based deployment (recommended), skip to section 13.
 
-## Overview
+## Detailed Setup Steps
 
-This repository contains a sample Student API used in the [SRE Bootcamp by One2N](https://one2n.io/sre-bootcamp). It demonstrates a full delivery lifecycle from local development to Kubernetes deployments managed with Helm and ArgoCD.
+The following sections document both raw manifest deployment (milestone 7) and Helm deployment (milestone 8).
 
-## Prerequisites
+## 1) Prerequisites installed
 
-- Docker & Docker Compose (for local development)
-- Python 3.9+ (development), GNU `make`
-- A Kubernetes cluster (Minikube or cloud) with `kubectl` and `helm` (for cluster deployments)
+- Docker
+- Python 3.x
+- Make
+- Git
+- Minikube
+- kubectl
+- Helm
 
-## Quick start (local)
-
-Start a lightweight development environment with Docker Compose.
-
-Run these commands:
+## 2) Local setup (one-click)
 
 ```bash
 make setup
+```
+
+Optional local run:
+
+```bash
 make start
 ```
 
-What they do:
-
-- `make setup` — install helpers and prerequisites
-- `make start` — start API, DB, and apply migrations
-
-Useful targets:
-
-- `make up` — Start services in detached mode
-- `make down` — Stop services
-- `make migrate` — Run DB migrations inside the container
-- `make test` — Run unit tests with pytest
-
-## GitOps (ArgoCD)
-
-ArgoCD is the recommended continuous delivery method. To install and access ArgoCD, run:
+## 3) Create a 3-node Minikube cluster
 
 ```bash
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+minikube start --nodes 3
 ```
 
-Get the initial admin password:
+Confirm nodes:
 
 ```bash
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+kubectl get nodes -o wide
 ```
 
-Port-forward the server to access the UI locally:
+## 4) Label the nodes
+
+Replace node names with those from `kubectl get nodes -o wide`.
 
 ```bash
-kubectl port-forward svc/argocd-server -n argocd 8085:443
+kubectl label node minikube type=application
+kubectl label node minikube-m02 type=database
+kubectl label node minikube-m03 type=dependent_services
 ```
 
-Open https://localhost:8085 and deploy the application manifests, for example:
+Verify labels:
 
 ```bash
-kubectl apply -f helm/argocd/applications.yaml
+kubectl get nodes --show-labels
 ```
 
-ArgoCD will sync the repository state and manage your cluster deployments.
-
-## Manual Helm deploy
-
-Use Helm when you prefer manual control or for debugging. Typical deploy order:
-
-1. Update chart dependencies:
+## 5) Apply Kubernetes manifests (first pass)
 
 ```bash
-helm dependency update ./helm/vault
-helm dependency update ./helm/postgres
-helm dependency update ./helm/external-secrets
+kubectl apply -f k8s/namespaces.yaml
+kubectl apply -f k8s/vault/vault.yaml
+kubectl apply -f k8s/database/database.yaml
+kubectl apply -f k8s/application/application.yaml
 ```
 
-2. Install supporting components and infrastructure (example):
+Result: core resources applied, ESO resources failed because CRDs were missing.
 
-Install the External Secrets Operator:
+## 6) Install External Secrets Operator (ESO)
 
 ```bash
-helm upgrade --install external-secrets ./helm/external-secrets -n external-secrets --create-namespace
+helm repo add external-secrets https://charts.external-secrets.io
+helm repo update
+
+kubectl create namespace external-secrets
+helm install external-secrets external-secrets/external-secrets \
+	-n external-secrets
 ```
 
-Install Vault and Postgres:
+Verify CRDs and controller:
 
 ```bash
-helm upgrade --install vault ./helm/vault -n vault --create-namespace
-helm upgrade --install database ./helm/postgres -n student-api
+kubectl get crd | grep external-secrets
+kubectl get pods -n external-secrets
 ```
 
-Install the Student API chart:
+## 7) Re-apply app manifest (to create SecretStore/ExternalSecret)
 
 ```bash
-helm upgrade --install student-api ./helm/student-api -n student-api
+kubectl apply -f k8s/application/application.yaml
 ```
 
-3. Verify resources:
+## 8) Seed Vault with DB credentials
+
+Vault runs in dev mode with root token `root`. The Vault pod name will be `vault-0` when deployed via Helm.
+
+```bash
+kubectl get pods -n vault
+kubectl exec -it -n vault vault-0 -- /bin/sh -c '
+	export VAULT_ADDR=http://127.0.0.1:8200
+	export VAULT_TOKEN=root
+	vault kv put secret/student-api/db-creds username=postgres password=password
+'
+```
+
+Verify the secret:
+
+```bash
+kubectl exec -it -n vault vault-0 -- /bin/sh -c '
+	export VAULT_ADDR=http://127.0.0.1:8200
+	export VAULT_TOKEN=root
+	vault kv get secret/student-api/db-creds
+'
+```
+
+## 9) Verify ESO sync
 
 ```bash
 kubectl get externalsecret -n student-api
+kubectl get secret db-creds-final -n student-api -o yaml
+```
+
+## 10) Restart app deployment (if needed)
+
+```bash
+kubectl rollout restart deployment/student-api -n student-api
+```
+
+## 11) Basic cluster checks
+
+```bash
+kubectl get deploy,svc,pods -n student-api
+```
+
+## 12) API verification (Postman)
+
+Use the included Postman collection and confirm 200 responses for:
+
+- `/healthcheck`
+- `/api/v1/students`
+
+## 13) Helm-only deployment (milestone 8)
+
+Deploy the full stack with Helm charts (no raw manifests):
+
+### Chart versions used:
+- External Secrets Operator: 2.0.0
+- HashiCorp Vault: 0.32.0
+- Bitnami PostgreSQL: 16.5.5
+
+### Setup Helm repositories:
+
+```bash
+helm repo add external-secrets https://charts.external-secrets.io
+helm repo add hashicorp https://helm.releases.hashicorp.com
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+```
+
+### Update chart dependencies:
+
+```bash
+helm dependency update ./helm/external-secrets
+helm dependency update ./helm/vault
+helm dependency update ./helm/postgres
+helm dependency update ./helm/student-api
+```
+
+### Deploy components in order:
+
+1. **Deploy External Secrets Operator:**
+
+```bash
+helm upgrade --install external-secrets ./helm/external-secrets \
+	-n external-secrets --create-namespace
+```
+
+2. **Deploy Vault:**
+
+```bash
+helm upgrade --install vault ./helm/vault \
+	-n vault --create-namespace
+```
+
+Wait for Vault to be ready:
+
+```bash
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=vault -n vault --timeout=120s
+```
+
+3. **Seed Vault with DB credentials:**
+
+```bash
+kubectl exec -it -n vault vault-0 -- /bin/sh -c '
+	export VAULT_ADDR=http://127.0.0.1:8200
+	export VAULT_TOKEN=root
+	vault kv put secret/student-api/db-creds username=postgres password=password
+'
+```
+
+Verify the secret was stored:
+
+```bash
+kubectl exec -it -n vault vault-0 -- /bin/sh -c '
+	export VAULT_ADDR=http://127.0.0.1:8200
+	export VAULT_TOKEN=root
+	vault kv get secret/student-api/db-creds
+'
+```
+
+4. **Deploy PostgreSQL:**
+
+> **Note:** PostgreSQL is configured with `persistence.enabled: false` to avoid PVC issues in Minikube. For production, enable persistence.
+
+```bash
+helm upgrade --install postgres ./helm/postgres \
+	-n student-api --create-namespace
+```
+
+Wait for PostgreSQL to be ready:
+
+```bash
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=postgresql -n student-api --timeout=120s
+```
+
+5. **Deploy Student API:**
+
+> **Important:** The database hostname is configured as `postgres-postgresql` (Bitnami's service naming convention).
+
+```bash
+helm upgrade --install student-api ./helm/student-api \
+	-n student-api
+```
+
+### Verify the deployment:
+
+Check all pods are running:
+
+```bash
+kubectl get pods -n vault
+kubectl get pods -n external-secrets
 kubectl get pods -n student-api
 ```
 
-Port-forward the API for local access:
+Verify ESO SecretStore and ExternalSecret:
 
 ```bash
-kubectl port-forward svc/student-api 8082:8080 -n student-api
+kubectl get secretstore,externalsecret -n student-api
+kubectl get secret db-creds-final -n student-api -o jsonpath='{.data.username}' | base64 -d && echo
 ```
 
-## Observability
+Test the API:
 
-The repo includes Helm values for monitoring (Prometheus, Grafana), logging (Loki), and exporters.
+```bash
+# Get Minikube IP
+minikube ip
 
-Add required Helm repos and install the stack (example):
+# Test healthcheck
+curl http://$(minikube ip):30001/healthcheck
+
+# Test students endpoint
+curl http://$(minikube ip):30001/api/v1/students
+
+# Create a student
+curl -X POST http://$(minikube ip):30001/api/v1/students \
+  -H "Content-Type: application/json" \
+  -d '{"first_name": "John", "last_name": "Doe", "grade": "A", "email": "john@example.com"}'
+```
+
+## 14) ArgoCD one-click deployments (milestone 9)
+
+ArgoCD is installed from a declarative manifest and bootstrapped using the app-of-apps pattern.
+
+### Install ArgoCD
+
+```bash
+kubectl create namespace argocd
+kubectl apply -n argocd -k k8s/argocd
+```
+
+Wait for ArgoCD components to be ready:
+
+```bash
+kubectl get pods -n argocd
+```
+
+### Bootstrap apps (app-of-apps)
+
+```bash
+kubectl apply -f k8s/argocd/root-app.yaml
+```
+
+This will create the following ArgoCD apps (all from Helm charts):
+- External Secrets Operator
+- Vault
+- PostgreSQL
+- Student API
+
+> Observability app is intentionally omitted until milestone 10.
+
+ArgoCD tracks the `ci-updates` branch for the root app and child apps so it can continuously deploy the image tag updates pushed by CI.
+
+### CI-driven image tag updates
+
+The GitHub Actions workflow updates the Student API chart image tag and pushes to the `ci-updates` branch on every non-tag build.
+
+Required GitHub secrets:
+- `DOCKER_USERNAME`
+- `DOCKER_PASSWORD`
+
+Workflow behavior:
+- Tags release builds with `v*.*.*` when you push a Git tag.
+- For regular pushes, the image tag is the short commit SHA.
+- The workflow updates `helm/student-api/values.yaml` and pushes to `ci-updates`.
+
+### Access ArgoCD UI (optional)
+
+```bash
+kubectl port-forward -n argocd svc/argocd-server 8081:443
+```
+
+Default username: `admin`
+
+Get the initial password:
+
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret \
+	-o jsonpath='{.data.password}' | base64 -d && echo
+```
+
+### Verify ArgoCD sync
+
+```bash
+kubectl get applications -n argocd
+```
+
+ArgoCD is pinned to the `dependent_services` node via `nodeSelector` in the install manifest.
+The `install.yaml` file is upstream and not modified; node selectors are applied via kustomize patches in k8s/argocd/patches.
+
+## 15) Observability stack (milestone 10)
+
+This stack deploys Prometheus, Grafana, Loki, Promtail, blackbox exporter, and Postgres exporter in the `observability` namespace.
+
+### Add Helm repositories
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
-
-helm install monitoring prometheus-community/kube-prometheus-stack -n observability -f helm/observability-values.yaml
-helm install loki grafana/loki-stack -n observability -f helm/observability-values.yaml
-helm install db-exporter prometheus-community/prometheus-postgres-exporter -n observability -f helm/observability-values.yaml
-helm install blackbox prometheus-community/prometheus-blackbox-exporter -n observability -f helm/observability-values.yaml
 ```
 
-Port-forward Grafana:
+### Update chart dependencies
 
 ```bash
-kubectl port-forward -n observability deployment/monitoring-grafana 3000:3000
+helm dependency update ./helm/observability
 ```
 
-Grafana data sources in this setup typically point to Prometheus and Loki.
+### Deploy the observability stack
 
-## API Endpoints
+```bash
+helm upgrade --install observability ./helm/observability \
+	-n observability --create-namespace
+```
 
-All endpoints are versioned under `/api/v1`.
+### Verify the deployment
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/healthcheck` | Service health status |
-| GET | `/api/v1/students` | List all students |
-| POST | `/api/v1/students` | Create a new student |
-| GET | `/api/v1/students/<id>` | Retrieve a student by ID |
-| PUT | `/api/v1/students/<id>` | Update a student's details |
-| DELETE | `/api/v1/students/<id>` | Delete a student record |
+```bash
+kubectl get pods -n observability
+kubectl get svc -n observability
+```
 
-## Testing & Logging
+### Access Grafana and Prometheus
 
-- Unit tests: `make test` (pytest)
-- Logging: structured logs (INFO/DEBUG) for observability and troubleshooting
+```bash
+kubectl port-forward -n observability svc/observability-grafana 3000:80
+kubectl port-forward -n observability svc/observability-kube-prometheus-stack-prometheus 9090:9090
+```
 
-## Student model
+Grafana login:
+- Username: `admin`
+- Password: `admin`
 
-The `Student` model contains the following fields:
+### Notes
 
-- `id` (primary key)
-- `first_name`, `last_name`
-- `grade`
-- `email` (unique)
+- Update Postgres credentials in [helm/observability/values.yaml](helm/observability/values.yaml) if they differ from the defaults.
+- Promtail is scoped to only the `student-api` namespace and `app=student-api` pods.
+- Blackbox exporter probes internal endpoints for Student API, Vault, and ArgoCD.
+
+## 16) Dashboards & alerts (milestone 11)
+
+Grafana dashboards and Prometheus alert rules are provisioned by the observability chart.
+
+### Dashboards
+
+Dashboards are created from ConfigMaps in the `observability` namespace and should appear automatically in Grafana:
+- Student DB Metrics
+- Student API Error Logs
+- Node Metrics
+- Kube-State Metrics
+- Blackbox Metrics
+
+### Alerts
+
+Prometheus rules are created via a `PrometheusRule` resource. Verify they exist:
+
+```bash
+kubectl get prometheusrules -n observability
+```
+
+### Slack notifications
+
+Update the Slack webhook placeholder in [helm/observability/values.yaml](helm/observability/values.yaml) and re-deploy:
+
+```bash
+helm upgrade --install observability ./helm/observability \
+	-n observability
+```
+
+> The `HighRequestRate` alert assumes application request metrics are available. If you add app Prometheus metrics later, this alert will begin firing appropriately.
+
+## Current status (Milestone 9 Complete)
+
+✅ **All components deployed via Helm:**
+- External Secrets Operator (v2.0.0) - syncing secrets from Vault
+- HashiCorp Vault (v0.32.0) - dev mode with root token
+- Bitnami PostgreSQL (16.5.5) - running without persistence
+- Student API - running with migrations completed
+
+✅ **ArgoCD GitOps deployment:**
+- ArgoCD installed from declarative manifest
+- App-of-apps bootstraps Helm-based deployments
+- Auto-sync enabled for apps
+
+✅ **Key configurations:**
+- PostgreSQL persistence disabled (for Minikube compatibility)
+- Database hostname: `postgres-postgresql`
+- Vault token stored in Secret: `vault-backend-token`
+- DB credentials synced to: `db-creds-final`
+- API exposed via NodePort: 30001
+
+### Troubleshooting:
+
+If pods are not running, check:
+
+```bash
+# Check ESO connectivity to Vault
+kubectl describe secretstore vault-backend -n student-api
+
+# Check external secret sync status
+kubectl describe externalsecret db-creds-sync -n student-api
+
+# Check application logs
+kubectl logs -n student-api deployment/student-api --tail=50
+
+# Check database logs
+kubectl logs -n student-api postgres-postgresql-0 --tail=50
+
+# Restart ESO if needed
+kubectl rollout restart deployment -n external-secrets external-secrets-external-secrets
+```

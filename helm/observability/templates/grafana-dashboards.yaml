@@ -1,0 +1,170 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-dashboard-db
+  labels:
+    grafana_dashboard: "1"
+data:
+  student-db-metrics.json: |-
+    {
+      "uid": "student-db",
+      "title": "Student DB Metrics",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "30s",
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "DB Up",
+          "datasource": "Prometheus",
+          "targets": [
+            {"expr": "pg_up", "refId": "A"}
+          ],
+          "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8}
+        },
+        {
+          "type": "timeseries",
+          "title": "Connections",
+          "datasource": "Prometheus",
+          "targets": [
+            {"expr": "pg_stat_database_numbackends", "refId": "A"}
+          ],
+          "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8}
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-dashboard-app-logs
+  labels:
+    grafana_dashboard: "1"
+data:
+  student-app-logs.json: |-
+    {
+      "uid": "student-app-logs",
+      "title": "Student API Error Logs",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "30s",
+      "panels": [
+        {
+          "type": "logs",
+          "title": "Error Logs",
+          "datasource": "Loki",
+          "targets": [
+            {"expr": "{namespace=\"student-api\", app=\"student-api\"} |= \"ERROR\"", "refId": "A"}
+          ],
+          "gridPos": {"x": 0, "y": 0, "w": 24, "h": 12}
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-dashboard-node
+  labels:
+    grafana_dashboard: "1"
+data:
+  student-node-metrics.json: |-
+    {
+      "uid": "student-node",
+      "title": "Node Metrics",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "30s",
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "CPU Usage (%)",
+          "datasource": "Prometheus",
+          "targets": [
+            {"expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)", "refId": "A"}
+          ],
+          "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8}
+        },
+        {
+          "type": "timeseries",
+          "title": "Memory Available (Bytes)",
+          "datasource": "Prometheus",
+          "targets": [
+            {"expr": "node_memory_MemAvailable_bytes", "refId": "A"}
+          ],
+          "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8}
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-dashboard-kube-state
+  labels:
+    grafana_dashboard: "1"
+data:
+  student-kube-state.json: |-
+    {
+      "uid": "student-kube-state",
+      "title": "Kube-State Metrics",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "30s",
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Available Replicas",
+          "datasource": "Prometheus",
+          "targets": [
+            {"expr": "kube_deployment_status_replicas_available", "refId": "A"}
+          ],
+          "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8}
+        },
+        {
+          "type": "timeseries",
+          "title": "Pod Restarts",
+          "datasource": "Prometheus",
+          "targets": [
+            {"expr": "rate(kube_pod_container_status_restarts_total[5m])", "refId": "A"}
+          ],
+          "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8}
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-dashboard-blackbox
+  labels:
+    grafana_dashboard: "1"
+data:
+  student-blackbox.json: |-
+    {
+      "uid": "student-blackbox",
+      "title": "Blackbox Metrics",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "30s",
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Endpoint Uptime",
+          "datasource": "Prometheus",
+          "targets": [
+            {"expr": "probe_success", "refId": "A"}
+          ],
+          "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8}
+        },
+        {
+          "type": "timeseries",
+          "title": "Probe Duration (Seconds)",
+          "datasource": "Prometheus",
+          "targets": [
+            {"expr": "probe_duration_seconds", "refId": "A"}
+          ],
+          "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8}
+        }
+      ]
+    }
