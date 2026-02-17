@@ -83,14 +83,24 @@ loki:
           index:
             prefix: loki_index_
             period: 24h
-    rulerConfig:
-      enable_api: false
   singleBinary:
     replicas: 1
     nodeSelector:
       type: dependent_services
     persistence:
       enabled: false
+    extraVolumes:
+      - name: rules
+        emptyDir: {}
+    extraVolumeMounts:
+      - name: rules
+        mountPath: /var/loki/rules
+  chunksCache:
+    enabled: false
+  resultsCache:
+    enabled: false
+  gateway:
+    enabled: false
   read:
     replicas: 0
   write:
@@ -100,6 +110,16 @@ loki:
   test:
     enabled: false
   monitoring:
+    dashboards:
+      enabled: false
+    rules:
+      enabled: false
+    serviceMonitor:
+      enabled: false
+    selfMonitoring:
+      enabled: false
+      grafanaAgent:
+        installOperator: false
     lokiCanary:
       enabled: false
 
