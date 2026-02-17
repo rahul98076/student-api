@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/rahul98076/student-api.git
-    targetRevision: ci-updates
+    targetRevision: obs-fresh
     path: k8s/argocd/apps
   destination:
     server: https://kubernetes.default.svc

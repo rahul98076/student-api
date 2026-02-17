@@ -74,12 +74,12 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
-          git fetch origin main
-          git checkout -B ci-updates origin/main
+          git fetch origin obs-fresh
+          git checkout -B obs-fresh origin/obs-fresh
 
           sed -i 's/tag: .*/tag: "${{ steps.image_tag.outputs.tag }}"/' helm/student-api/values.yaml
 
           git add helm/student-api/values.yaml
 
           git commit -m "Deploy: Update image tag to ${{ steps.image_tag.outputs.tag }} [skip ci]" || echo "No changes to commit"
-          git push origin ci-updates
+          git push origin obs-fresh
