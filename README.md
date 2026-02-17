@@ -126,28 +126,59 @@ kubectl port-forward svc/student-api 8082:8080 -n student-api
 
 ## Observability
 
-The repo includes Helm values for monitoring (Prometheus, Grafana), logging (Loki), and exporters.
+The observability stack is managed via ArgoCD and includes:
+- **Prometheus** (kube-prometheus-stack v61.3.0) - Metrics collection and alerting
+- **Grafana** - Visualization and dashboards
+- **Loki** (SingleBinary mode) - Log aggregation
+- **Promtail** - Log shipping
+- **Postgres Exporter** - Database metrics
+- **Blackbox Exporter** - Endpoint monitoring
 
-Add required Helm repos and install the stack (example):
+### Deployment
 
-```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add grafana https://grafana.github.io/helm-charts
-helm repo update
-
-helm install monitoring prometheus-community/kube-prometheus-stack -n observability -f helm/observability-values.yaml
-helm install loki grafana/loki-stack -n observability -f helm/observability-values.yaml
-helm install db-exporter prometheus-community/prometheus-postgres-exporter -n observability -f helm/observability-values.yaml
-helm install blackbox prometheus-community/prometheus-blackbox-exporter -n observability -f helm/observability-values.yaml
-```
-
-Port-forward Grafana:
+The observability stack is deployed as a single ArgoCD application:
 
 ```bash
-kubectl port-forward -n observability deployment/monitoring-grafana 3000:3000
+kubectl apply -f k8s/argocd/apps/observability.yaml
 ```
 
-Grafana data sources in this setup typically point to Prometheus and Loki.
+**Key Configuration Details:**
+- Uses `ServerSideApply=true` to handle large CRD annotations (known issue with kube-prometheus-stack)
+- Loki configured with SingleBinary deployment mode for simplicity
+- Includes emptyDir volumes for transient storage (suitable for testing/dev)
+- All components use `nodeSelector: type: dependent_services` for node placement
+
+### Access Grafana
+
+Port-forward to access Grafana UI:
+
+```bash
+kubectl port-forward -n observability svc/prometheus-stack-grafana 3000:80
+```
+
+Default credentials: `admin / admin`
+
+Grafana comes pre-configured with:
+- Prometheus data source: `http://prometheus-stack-kube-prom-prometheus:9090`
+- Loki data source: `http://loki:3100`
+
+### Known Issues & Fixes
+
+**CRD Annotation Size Limit:**
+The kube-prometheus-stack chart v60.x and earlier has an issue where CRD annotations exceed Kubernetes' 256KB limit. This is fixed by:
+1. Upgrading to v61.3.0+
+2. Using `ServerSideApply=true` sync option in ArgoCD
+
+**Loki Filesystem Storage:**
+Loki requires writable storage for `/var/loki`. The configuration includes:
+```yaml
+extraVolumes:
+  - name: data
+    emptyDir: {}
+extraVolumeMounts:
+  - name: data
+    mountPath: /var/loki
+```
 
 ## API Endpoints
 
