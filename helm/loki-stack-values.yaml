@@ -1,0 +1,44 @@
+loki:
+  enabled: true
+  persistence:
+    enabled: false
+  config:
+    auth_enabled: false
+    ingester:
+      chunk_idle_period: 3m
+      chunk_retain_period: 1m
+      max_chunk_age: 1h
+      flush_interval: 60s
+      flush_on_shutdown: true
+    limits_config:
+      enforce_metric_name: false
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+
+promtail:
+  enabled: true
+  config:
+    clients:
+    - url: http://loki:3100/loki/api/v1/push
+    scrape_configs:
+    - job_name: kubernetes-pods
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_node_name]
+        target_label: node_name
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+      - source_labels: [__meta_kubernetes_container_name]
+        target_label: container
+
+grafana:
+  enabled: true
+  adminPassword: admin
+  sidecar:
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+      uid: prometheus
