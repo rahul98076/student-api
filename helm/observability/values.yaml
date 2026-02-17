@@ -69,32 +69,20 @@ loki:
     type: dependent_services
   deploymentMode: SingleBinary
   loki:
+    useTestSchema: true
     auth_enabled: false
     commonConfig:
       replication_factor: 1
     storage:
       type: filesystem
-    schemaConfig:
-      configs:
-        - from: 2024-04-01
-          store: tsdb
-          object_store: filesystem
-          schema: v13
-          index:
-            prefix: loki_index_
-            period: 24h
+      bucketNames:
+        chunks: loki-chunks
+        ruler: loki-ruler
+        admin: loki-admin
   singleBinary:
     replicas: 1
     nodeSelector:
       type: dependent_services
-    persistence:
-      enabled: false
-    extraVolumes:
-      - name: rules
-        emptyDir: {}
-    extraVolumeMounts:
-      - name: rules
-        mountPath: /var/loki/rules
   chunksCache:
     enabled: false
   resultsCache:
