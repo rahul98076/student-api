@@ -40,19 +40,23 @@ kube-prometheus-stack:
     sidecar:
       datasources:
         enabled: true
+        defaultDatasourceEnabled: false
       dashboards:
         enabled: true
         label: grafana_dashboard
-    additionalDataSources:
-      - name: Prometheus
-        type: prometheus
-        access: proxy
-        url: http://observability-kube-prometheus-stack-prometheus:9090
-        isDefault: true
-      - name: Loki
-        type: loki
-        access: proxy
-        url: http://observability-loki:3100
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+          - name: Prometheus
+            type: prometheus
+            access: proxy
+            url: http://observability-kube-prometheus-stack-prometheus:9090
+            isDefault: true
+          - name: Loki
+            type: loki
+            access: proxy
+            url: http://observability-loki:3100
   kube-state-metrics:
     nodeSelector:
       type: dependent_services
@@ -79,10 +83,14 @@ loki:
           index:
             prefix: loki_index_
             period: 24h
+    rulerConfig:
+      enable_api: false
   singleBinary:
     replicas: 1
     nodeSelector:
       type: dependent_services
+    persistence:
+      enabled: false
   read:
     replicas: 0
   write:
@@ -91,6 +99,9 @@ loki:
     replicas: 0
   test:
     enabled: false
+  monitoring:
+    lokiCanary:
+      enabled: false
 
 promtail:
   config:
