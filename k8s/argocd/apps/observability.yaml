@@ -69,14 +69,22 @@ spec:
         deploymentMode: SingleBinary
         loki:
           auth_enabled: false
+          useTestSchema: true
           commonConfig:
             replication_factor: 1
+            path_prefix: /var/loki
           storage:
             type: filesystem
         singleBinary:
           replicas: 1
           persistence:
             enabled: false
+          extraVolumes:
+            - name: data
+              emptyDir: {}
+          extraVolumeMounts:
+            - name: data
+              mountPath: /var/loki
         backend:
           replicas: 0
         read:
