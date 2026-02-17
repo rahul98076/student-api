@@ -59,28 +59,36 @@ spec:
             type: dependent_services
     path: ""
   
-  # Loki (Monolithic)
+  # Loki
   - repoURL: https://grafana.github.io/helm-charts
     chart: loki
     targetRevision: 6.0.0
     helm:
       releaseName: loki
       values: |
+        deploymentMode: SingleBinary
         loki:
-          useTestSchema: true
           auth_enabled: false
-          ingester:
-            chunk_idle_period: 3m
-            chunk_retain_period: 1m
-            max_chunk_age: 1h
-            flush_interval: 60s
-            flush_on_shutdown: true
-        persistence:
+          commonConfig:
+            replication_factor: 1
+          storage:
+            type: filesystem
+        singleBinary:
+          replicas: 1
+          persistence:
+            enabled: false
+        backend:
+          replicas: 0
+        read:
+          replicas: 0
+        write:
+          replicas: 0
+        chunksCache:
           enabled: false
-        nodeSelector:
-          type: dependent_services
-        tolerations: []
-        affinity: {}
+        resultsCache:
+          enabled: false
+        gateway:
+          enabled: false
     path: ""
   
   # Promtail
