@@ -51,7 +51,7 @@ kube-prometheus-stack:
           - name: Prometheus
             type: prometheus
             access: proxy
-            url: http://observability-kube-prometheus-stack-prometheus:9090
+            url: http://observability-kube-prometh-prometheus:9090
             isDefault: true
           - name: Loki
             type: loki
@@ -79,10 +79,27 @@ loki:
         chunks: loki-chunks
         ruler: loki-ruler
         admin: loki-admin
+    rulerConfig:
+      enable_api: false
+      enable_sharding: false
+      storage:
+        type: local
+        local:
+          directory: /var/loki/rules-temp
   singleBinary:
     replicas: 1
     nodeSelector:
       type: dependent_services
+    extraVolumes:
+      - name: rules-temp
+        emptyDir: {}
+    extraVolumeMounts:
+      - name: rules-temp
+        mountPath: /var/loki/rules-temp
+    podSecurityContext:
+      fsGroup: 10001
+      runAsUser: 10001
+      runAsNonRoot: true
   chunksCache:
     enabled: false
   resultsCache:
