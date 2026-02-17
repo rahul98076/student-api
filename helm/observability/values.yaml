@@ -116,7 +116,7 @@ prometheus-postgres-exporter:
       host: postgres-postgresql.student-api.svc.cluster.local
       user: postgres
       password: password
-      port: 5432
+      port: "5432"
       database: studentdb
   serviceMonitor:
     enabled: true
