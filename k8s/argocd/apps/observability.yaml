@@ -1,0 +1,180 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  project: default
+  sources:
+  # Prometheus Stack
+  - repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 60.0.0
+    helm:
+      releaseName: prometheus-stack
+      values: |
+        prometheus:
+          prometheusSpec:
+            nodeSelector:
+              type: dependent_services
+            retention: 24h
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 1Gi
+        grafana:
+          adminPassword: "admin"
+          nodeSelector:
+            type: dependent_services
+          persistence:
+            enabled: false
+          datasources:
+            datasources.yaml:
+              apiVersion: 1
+              datasources:
+              - name: Prometheus
+                type: prometheus
+                url: http://prometheus-stack-kube-prom-prometheus:9090
+                isDefault: true
+              - name: Loki
+                type: loki
+                url: http://loki:3100
+        alertmanager:
+          alertmanagerSpec:
+            nodeSelector:
+              type: dependent_services
+        prometheusOperator:
+          nodeSelector:
+            type: dependent_services
+        kubeStateMetrics:
+          nodeSelector:
+            type: dependent_services
+        prometheus-node-exporter:
+          nodeSelector:
+            type: dependent_services
+    path: ""
+  
+  # Loki (Monolithic)
+  - repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    targetRevision: 6.0.0
+    helm:
+      releaseName: loki
+      values: |
+        loki:
+          useTestSchema: true
+          auth_enabled: false
+          ingester:
+            chunk_idle_period: 3m
+            chunk_retain_period: 1m
+            max_chunk_age: 1h
+            flush_interval: 60s
+            flush_on_shutdown: true
+        persistence:
+          enabled: false
+        nodeSelector:
+          type: dependent_services
+        tolerations: []
+        affinity: {}
+    path: ""
+  
+  # Promtail
+  - repoURL: https://grafana.github.io/helm-charts
+    chart: promtail
+    targetRevision: 6.0.0
+    helm:
+      releaseName: promtail
+      values: |
+        config:
+          clients:
+          - url: http://loki:3100/loki/api/v1/push
+          scrape_configs:
+          - job_name: kubernetes-pods
+            kubernetes_sd_configs:
+            - role: pod
+            relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_node_name]
+              target_label: node_name
+            - source_labels: [__meta_kubernetes_namespace]
+              target_label: namespace
+            - source_labels: [__meta_kubernetes_pod_name]
+              target_label: pod
+            - source_labels: [__meta_kubernetes_container_name]
+              target_label: container
+    path: ""
+  
+  # Postgres Exporter
+  - repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus-postgres-exporter
+    targetRevision: 7.5.0
+    helm:
+      releaseName: postgres-exporter
+      values: |
+        serviceMonitor:
+          enabled: true
+          namespace: observability
+          interval: 30s
+        config:
+          datasource:
+            host: postgres-db-postgresql.student-api.svc.cluster.local
+            port: "5432"
+            user: postgres
+            password: studentpass
+            database: studentdb
+        nodeSelector:
+          type: dependent_services
+    path: ""
+  
+  # Blackbox Exporter
+  - repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus-blackbox-exporter
+    targetRevision: 8.17.0
+    helm:
+      releaseName: blackbox-exporter
+      values: |
+        serviceMonitor:
+          enabled: true
+          namespace: observability
+          defaults:
+            interval: 30s
+            scrapeTimeout: 10s
+          targets:
+          - name: student-api
+            url: http://student-api.student-api.svc.cluster.local:8080/healthcheck
+            module: http_2xx
+          - name: argocd-server
+            url: https://argocd-server.argocd.svc.cluster.local:443
+            module: http_2xx
+          - name: vault-api
+            url: http://vault.vault.svc.cluster.local:8200/ui
+            module: http_2xx
+        config:
+          modules:
+            http_2xx:
+              prober: http
+              timeout: 5s
+              http:
+                valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+                follow_redirects: true
+            tcp_connect:
+              prober: tcp
+              timeout: 5s
+        nodeSelector:
+          type: dependent_services
+    path: ""
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true
